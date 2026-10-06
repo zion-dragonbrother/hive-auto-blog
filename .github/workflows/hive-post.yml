@@ -12,6 +12,4 @@ jobs:
         with:
           python-version: '3.9'
       - name: Run script
-        env:
-          HIVE_USER: ${{ secrets.HIVE_USER }}
         run: python post_to_hive.py
