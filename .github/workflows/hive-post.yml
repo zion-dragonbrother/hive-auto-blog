@@ -8,10 +8,6 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev python3-dev
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -19,7 +15,7 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          pip install requests beem
+          pip install requests
       - name: Run script
         env:
           HIVE_POSTING_KEY: ${{ secrets.HIVE_POSTING_KEY }}
