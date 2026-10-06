@@ -1,7 +1,7 @@
 name: Auto Hive Post
 on:
   schedule:
-    - cron: '0 0 * * *' # 매일 자정 실행
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -15,10 +15,9 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          pip install requests beem
+          pip install beem
       - name: Run script
         env:
           HIVE_POSTING_KEY: ${{ secrets.HIVE_POSTING_KEY }}
           HIVE_USER: ${{ secrets.HIVE_USER }}
         run: python post_to_hive.py
-
