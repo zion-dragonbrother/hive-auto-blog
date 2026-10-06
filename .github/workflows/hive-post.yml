@@ -15,7 +15,8 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          pip install beem
+          python -m pip install --upgrade pip
+          python -m pip install beem
       - name: Run script
         env:
           HIVE_POSTING_KEY: ${{ secrets.HIVE_POSTING_KEY }}
