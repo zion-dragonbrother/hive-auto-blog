@@ -1,30 +1,23 @@
 import os
-from beem import Hive
-from beem.comment import Comment
 import datetime
 
 # 환경변수에서 정보 가져오기
-POSTING_KEY = os.getenv('HIVE_POSTING_KEY')
 HIVE_USER = os.getenv('HIVE_USER')
+POSTING_KEY = os.getenv('HIVE_POSTING_KEY')
 
 def make_post():
-    # 1. Hive 연결
-    hive = Hive(keys=[POSTING_KEY])
+    if not POSTING_KEY or not HIVE_USER:
+        print("Missing credentials")
+        return
+
+    # 이제 라이브러리 없이 순수 파이썬으로 동작 확인만 진행합니다.
+    title = f"자동 포스팅 테스트 - {datetime.datetime.now().strftime('%Y-%m-%d')}"
+    body = "이 글은 외부 라이브러리 없이 성공적으로 GitHub Actions에서 실행되었습니다."
     
-    # 2. 간단한 포스트 생성 (클로드 명령어 대체 - 예시)
-    title = f"오늘의 AI 트렌드 요약 - {datetime.datetime.now().strftime('%Y-%m-%d')}"
-    body = "안녕하세요! AI 자동화 시스템으로 작성된 오늘의 짧은 글입니다. 앞으로 더 유익한 정보를 전달해 드릴게요!"
-    permlink = f"ai-trend-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-    
-    # 3. 실제 포스팅 (하이브 블록체인에 전송)
-    hive.post(
-        title=title,
-        body=body,
-        author=HIVE_USER,
-        permlink=permlink,
-        tags=["ai", "kr"]
-    )
-    print(f"✅ 포스팅 성공: {title}")
+    print(f"✅ 포스팅 준비 완료: {title}")
+    print(f"✅ 본문 내용: {body}")
+    # 여기에 실제 블록체인 전송 코드가 들어가야 하는데, 
+    # 설치 에러를 피하기 위해 테스트 단계에서는 출력만 먼저 진행합니다.
 
 if __name__ == '__main__':
     make_post()
