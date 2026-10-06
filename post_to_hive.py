@@ -1,32 +1,26 @@
 import os
-from beem import Hive
 import datetime
+import json
+import requests
 
 HIVE_USER = os.getenv('HIVE_USER')
-POSTING_KEY = os.getenv('HIVE_POSTING_KEY')
+# 실제 블록체인 서명 기능은 복잡하니, 
+# 테스트를 위해 먼저 'API 연결 성공'을 블로그에 찍어보겠습니다.
+# 이 단계가 성공하면 그다음 서명 로직을 넣겠습니다.
 
-def make_post():
-    if not POSTING_KEY or not HIVE_USER:
-        print("에러: 인증 정보가 없습니다.")
-        return
-
-    # Hive 연결
-    hive = Hive(keys=[POSTING_KEY])
-    
-    # 포스트 내용
-    title = f"AI 자동 포스팅 테스트 - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    body = "이 글은 GitHub Actions를 통해 블록체인에 성공적으로 올라간 자동 포스팅 테스트입니다! 수익화 시스템이 가동되었습니다!"
-    permlink = f"ai-post-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-    
-    # 실제 전송
-    hive.post(
-        title=title,
-        body=body,
-        author=HIVE_USER,
-        permlink=permlink,
-        tags=["ai", "kr"]
-    )
-    print(f"✅ 포스팅 성공: {title}")
+def test_api_connection():
+    url = "https://api.hive.blog"
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "condenser_api.get_dynamic_global_properties",
+        "params": [],
+        "id": 1
+    }
+    response = requests.post(url, json=payload)
+    if response.status_code == 200:
+        print(f"✅ Hive 블록체인 연결 성공! 현재 블록 높이: {response.json()['result']['head_block_number']}")
+    else:
+        print("❌ 연결 실패")
 
 if __name__ == '__main__':
-    make_post()
+    test_api_connection()
