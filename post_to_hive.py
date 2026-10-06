@@ -1,16 +1,32 @@
 import os
-import requests
+from beem import Hive
 import datetime
-import json
 
 HIVE_USER = os.getenv('HIVE_USER')
 POSTING_KEY = os.getenv('HIVE_POSTING_KEY')
 
 def make_post():
-    # 라이브러리 없이 Hive API 호출 테스트
-    print(f"✅ 사용 가능한 사용자: {HIVE_USER}")
-    print("시스템이 정상적으로 작동 중입니다.")
-    # 실제 블록체인 전송은 이 다음 단계에서 안정화 후 연결하겠습니다.
+    if not POSTING_KEY or not HIVE_USER:
+        print("에러: 인증 정보가 없습니다.")
+        return
+
+    # Hive 연결
+    hive = Hive(keys=[POSTING_KEY])
+    
+    # 포스트 내용
+    title = f"AI 자동 포스팅 테스트 - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    body = "이 글은 GitHub Actions를 통해 블록체인에 성공적으로 올라간 자동 포스팅 테스트입니다! 수익화 시스템이 가동되었습니다!"
+    permlink = f"ai-post-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    
+    # 실제 전송
+    hive.post(
+        title=title,
+        body=body,
+        author=HIVE_USER,
+        permlink=permlink,
+        tags=["ai", "kr"]
+    )
+    print(f"✅ 포스팅 성공: {title}")
 
 if __name__ == '__main__':
     make_post()
