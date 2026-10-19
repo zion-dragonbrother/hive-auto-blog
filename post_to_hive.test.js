@@ -12,6 +12,7 @@ const {
   checkPostingKey,
   getJson,
   retryDelayMs,
+  normalizeCoinGecko,
   normalizeCoinPaprika,
   getMarketData,
   buildInsight,
@@ -464,4 +465,128 @@ test('CLI exits non-zero for a missing user and does not print a key', () => {
   assert.match(result.stderr, HANGUL);
   assert.equal(result.stderr.includes(secret), false);
   assert.equal(result.stdout.includes(secret), false);
+});
+
+function headlineLines(body) {
+  return body.split('\n').filter((line) => line.startsWith('- 전체 ') || line.includes('dominance:'));
+}
+
+test('realistic CoinGecko and CoinPaprika payloads use B/T units and unsigned dominance', () => {
+  // Observed public /global total_volume.usd was ~4.422e13 ($44.22T) while the
+  // coins/markets volumes summed to about $98B. Dominance is a share, not a change.
+  const gecko = normalizeCoinGecko([
+    {
+      id: 'tether',
+      symbol: 'usdt',
+      name: 'Tether',
+      current_price: 1,
+      price_change_percentage_24h: 0.01,
+      price_change_percentage_7d_in_currency: 0,
+      total_volume: 50e9,
+      market_cap: 120e9
+    },
+    {
+      id: 'bitcoin',
+      symbol: 'btc',
+      name: 'Bitcoin',
+      current_price: 82459,
+      price_change_percentage_24h: 1.25,
+      price_change_percentage_7d_in_currency: -1.49,
+      total_volume: 20e9,
+      market_cap: 1.65e12
+    },
+    {
+      id: 'ethereum',
+      symbol: 'eth',
+      name: 'Ethereum',
+      current_price: 2800,
+      price_change_percentage_24h: -3.5,
+      price_change_percentage_7d_in_currency: 4.2,
+      total_volume: 15e9,
+      market_cap: 300e9
+    },
+    {
+      id: 'solana',
+      symbol: 'sol',
+      name: 'Solana',
+      current_price: 180,
+      price_change_percentage_24h: 12.4,
+      price_change_percentage_7d_in_currency: -6.1,
+      total_volume: 13e9,
+      market_cap: 80e9
+    }
+  ], {
+    data: {
+      total_market_cap: { usd: 2.75e12 },
+      total_volume: { usd: 44220000000000 },
+      market_cap_percentage: { btc: 60.113709487146004, eth: 10.741948992271997 }
+    }
+  });
+  assert.equal(gecko.global.total_volume.usd, 98e9);
+  assert.equal(gecko.global.total_market_cap.usd, 2.75e12);
+  const geckoBody = buildInsight(gecko).body;
+  assert.match(geckoBody, /전체 가상화폐 시가총액: \$2\.75T/);
+  assert.match(geckoBody, /전체 24시간 거래대금: \$98\.00B/);
+  assert.doesNotMatch(geckoBody, /전체 24시간 거래대금: \$44\.22T/);
+  assert.match(geckoBody, /BTC dominance: 60\.11%/);
+  assert.match(geckoBody, /ETH dominance: 10\.74%/);
+  assert.doesNotMatch(geckoBody, /dominance: \+/);
+  assert.match(geckoBody, /Bitcoin: \$82,459 \/ 24h \+1\.25% \/ 7d -1\.49%/);
+  assert.match(geckoBody, /Ethereum: .+ \/ 24h -3\.50%/);
+
+  const paprika = normalizeCoinPaprika([
+    {
+      id: 'usdt-tether',
+      name: 'Tether',
+      symbol: 'USDT',
+      quotes: { USD: { price: 1, volume_24h: 30e9, market_cap: 120e9, percent_change_24h: 0.01, percent_change_7d: 0 } }
+    },
+    {
+      id: 'btc-bitcoin',
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      quotes: { USD: { price: 82415, volume_24h: 20e9, market_cap: 1.65e12, percent_change_24h: 0.97, percent_change_7d: -1.49 } }
+    },
+    {
+      id: 'eth-ethereum',
+      name: 'Ethereum',
+      symbol: 'ETH',
+      quotes: { USD: { price: 2800, volume_24h: 16e9, market_cap: 310386000000, percent_change_24h: -2.25, percent_change_7d: 3.1 } }
+    },
+    {
+      id: 'usdc-usd-coin',
+      name: 'USDC',
+      symbol: 'USDC',
+      quotes: { USD: { price: 1, volume_24h: 12e9, market_cap: 40e9, percent_change_24h: 0, percent_change_7d: 0 } }
+    }
+  ], {
+    market_cap_usd: 2.89e12,
+    volume_24h_usd: 497e9,
+    bitcoin_dominance_percentage: 57.51
+  });
+  assert.equal(paprika.global.total_volume.usd, 78e9);
+  assert.equal(paprika.global.market_cap_percentage.btc, 57.51);
+  assert.equal(paprika.global.market_cap_percentage.eth, 10.74);
+  const paprikaBody = buildInsight(paprika).body;
+  assert.match(paprikaBody, /전체 가상화폐 시가총액: \$2\.89T/);
+  assert.match(paprikaBody, /전체 24시간 거래대금: \$78\.00B/);
+  assert.doesNotMatch(paprikaBody, /\$497\.00B/);
+  assert.match(paprikaBody, /BTC dominance: 57\.51%/);
+  assert.match(paprikaBody, /ETH dominance: 10\.74%/);
+  assert.doesNotMatch(paprikaBody, /dominance: \+/);
+  assert.match(paprikaBody, /24h \+0\.97%/);
+  assert.match(paprikaBody, /24h -2\.25%/);
+
+  assert.deepEqual(headlineLines(geckoBody), [
+    '- 전체 가상화폐 시가총액: $2.75T',
+    '- 전체 24시간 거래대금: $98.00B',
+    '- BTC dominance: 60.11%',
+    '- ETH dominance: 10.74%'
+  ]);
+  assert.deepEqual(headlineLines(paprikaBody), [
+    '- 전체 가상화폐 시가총액: $2.89T',
+    '- 전체 24시간 거래대금: $78.00B',
+    '- BTC dominance: 57.51%',
+    '- ETH dominance: 10.74%'
+  ]);
 });
