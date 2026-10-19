@@ -234,6 +234,45 @@ function coingeckoHeaders(apiKey) {
   return { 'x-cg-demo-api-key': key };
 }
 
+function sumListedVolumeUsd(markets) {
+  if (!Array.isArray(markets)) return 0;
+  return markets.reduce((sum, coin) => {
+    const volume = Number(coin && coin.total_volume);
+    return Number.isFinite(volume) && volume > 0 ? sum + volume : sum;
+  }, 0);
+}
+
+// CoinGecko /global total_volume.usd is not a usable headline figure: the public
+// payload is hundreds of times the sum of /coins/markets volumes (about $44T vs
+// about $100B). CoinPaprika volume_24h_usd runs the same way, several times the
+// sum of ticker volumes. Per-coin USD volume is the series in the tens to low
+// hundreds of billions. Fall back to the reported global number only when the
+// coin list has no volume.
+function totalVolumeUsd(reported, markets) {
+  const listed = sumListedVolumeUsd(markets);
+  if (listed > 0) return listed;
+  const reportedVolume = Number(reported);
+  return Number.isFinite(reportedVolume) ? reportedVolume : null;
+}
+
+function normalizeCoinGecko(markets, payload) {
+  const global = payload && payload.data ? payload.data : payload;
+  if (!Array.isArray(markets) || !global || !global.total_market_cap) {
+    throw new Error('CoinGecko returned an unexpected payload');
+  }
+  const reported = global.total_volume && global.total_volume.usd;
+  return {
+    markets,
+    global: {
+      market_cap_percentage: global.market_cap_percentage,
+      total_market_cap: global.total_market_cap,
+      total_volume: { usd: totalVolumeUsd(reported, markets) },
+      market_cap_change_percentage_24h_usd: global.market_cap_change_percentage_24h_usd
+    },
+    source: 'CoinGecko'
+  };
+}
+
 function normalizeCoinPaprika(tickers, global) {
   if (!Array.isArray(tickers) || !global || typeof global !== 'object') {
     throw new Error('CoinPaprika returned an unexpected payload');
@@ -269,7 +308,7 @@ function normalizeCoinPaprika(tickers, global) {
         eth: ethDominance
       },
       total_market_cap: { usd: global.market_cap_usd },
-      total_volume: { usd: global.volume_24h_usd }
+      total_volume: { usd: totalVolumeUsd(global.volume_24h_usd, mapped) }
     },
     source: 'CoinPaprika'
   };
@@ -281,10 +320,7 @@ async function getCoinGeckoMarketData(options) {
     getJson(COINGECKO_MARKETS_URL, Object.assign({}, options, { headers })),
     getJson(COINGECKO_GLOBAL_URL, Object.assign({}, options, { headers }))
   ]);
-  if (!Array.isArray(markets) || !global || !global.data) {
-    throw new Error('CoinGecko returned an unexpected payload');
-  }
-  return { markets, global: global.data, source: 'CoinGecko' };
+  return normalizeCoinGecko(markets, global);
 }
 
 async function getCoinPaprikaMarketData(options) {
@@ -329,6 +365,11 @@ function pct(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
   const n = Number(value);
   return (n > 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+
+function sharePct(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'N/A';
+  return Number(value).toFixed(2) + '%';
 }
 
 function usd(value) {
@@ -389,7 +430,7 @@ function buildInsight({ markets, global, source }) {
   }).join('\n\n');
 
   const title = `Crypto Capital Flow Brief: Bitcoin, Macro Liquidity and High-Volatility Coins (${date})`;
-  const body = `# ${title}\n\n## 1. 오늘의 시장 온도\n- 전체 가상화폐 시가총액: ${compactUsd(totalMarketCap)}\n- 전체 24시간 거래대금: ${compactUsd(totalVolume)}\n- BTC dominance: ${pct(btcDominance)}\n- ETH dominance: ${pct(ethDominance)}\n- Bitcoin: ${usd(btc?.current_price)} / 24h ${pct(btc?.price_change_percentage_24h)} / 7d ${pct(btc?.price_change_percentage_7d_in_currency)}\n- Ethereum: ${usd(eth?.current_price)} / 24h ${pct(eth?.price_change_percentage_24h)} / 7d ${pct(eth?.price_change_percentage_7d_in_currency)}\n\n## 2. 거대 자본과 세계경제 흐름 해석\n${dominanceComment}\n\n${btcFlow}\n\n최근 가상화폐 시장은 단순한 개인 투자 심리보다, 달러 유동성, ETF/기관성 수요, 금리 기대, 위험자산 선호 변화와 함께 움직이는 경향이 강합니다. 따라서 비트코인의 방향성과 BTC dominance는 거대 자본이 위험을 늘리는지, 아니면 알트코인보다 대형 자산에만 머무르는지 판단하는 핵심 신호로 볼 수 있습니다.\n\n## 3. 미친 변동률을 보이는 코인 2~3개 관찰 목록\n${moverLines}\n\n## 4. 트레이딩 제안이 아니라, 리스크 관리 중심의 관찰 시나리오\n- 레버리지는 피하고, 변동성 코인은 작은 비중으로만 접근합니다.\n- 24시간 변동률만 보고 진입하지 말고, 거래대금 유지 여부와 BTC 방향을 함께 확인합니다.\n- 급등 코인은 눌림 후 재돌파, 급락 코인은 거래량 둔화 후 반등 확인이 더 안전합니다.\n- 손절 기준을 먼저 정하지 못하면 진입하지 않는 것이 좋습니다.\n\n*이 글은 자동화된 시장 데이터 분석이며 투자 조언이 아닙니다. 모든 투자의 책임은 본인에게 있습니다.*\n\nData source: ${sourceLabel}. Published automatically to Hive blockchain.`;
+  const body = `# ${title}\n\n## 1. 오늘의 시장 온도\n- 전체 가상화폐 시가총액: ${compactUsd(totalMarketCap)}\n- 전체 24시간 거래대금: ${compactUsd(totalVolume)}\n- BTC dominance: ${sharePct(btcDominance)}\n- ETH dominance: ${sharePct(ethDominance)}\n- Bitcoin: ${usd(btc?.current_price)} / 24h ${pct(btc?.price_change_percentage_24h)} / 7d ${pct(btc?.price_change_percentage_7d_in_currency)}\n- Ethereum: ${usd(eth?.current_price)} / 24h ${pct(eth?.price_change_percentage_24h)} / 7d ${pct(eth?.price_change_percentage_7d_in_currency)}\n\n## 2. 거대 자본과 세계경제 흐름 해석\n${dominanceComment}\n\n${btcFlow}\n\n최근 가상화폐 시장은 단순한 개인 투자 심리보다, 달러 유동성, ETF/기관성 수요, 금리 기대, 위험자산 선호 변화와 함께 움직이는 경향이 강합니다. 따라서 비트코인의 방향성과 BTC dominance는 거대 자본이 위험을 늘리는지, 아니면 알트코인보다 대형 자산에만 머무르는지 판단하는 핵심 신호로 볼 수 있습니다.\n\n## 3. 미친 변동률을 보이는 코인 2~3개 관찰 목록\n${moverLines}\n\n## 4. 트레이딩 제안이 아니라, 리스크 관리 중심의 관찰 시나리오\n- 레버리지는 피하고, 변동성 코인은 작은 비중으로만 접근합니다.\n- 24시간 변동률만 보고 진입하지 말고, 거래대금 유지 여부와 BTC 방향을 함께 확인합니다.\n- 급등 코인은 눌림 후 재돌파, 급락 코인은 거래량 둔화 후 반등 확인이 더 안전합니다.\n- 손절 기준을 먼저 정하지 못하면 진입하지 않는 것이 좋습니다.\n\n*이 글은 자동화된 시장 데이터 분석이며 투자 조언이 아닙니다. 모든 투자의 책임은 본인에게 있습니다.*\n\nData source: ${sourceLabel}. Published automatically to Hive blockchain.`;
 
   return { title, body };
 }
@@ -499,6 +540,7 @@ module.exports = {
   checkPostingKey,
   getJson,
   retryDelayMs,
+  normalizeCoinGecko,
   normalizeCoinPaprika,
   getMarketData,
   buildInsight,
