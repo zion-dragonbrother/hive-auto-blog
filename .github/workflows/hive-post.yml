@@ -1,22 +1,38 @@
 name: Auto Hive Post
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate the posting key and build the post, but do not broadcast'
+        type: boolean
+        default: false
   schedule:
     - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+  actions: write
 
 jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: npm
+          package-manager-cache: false
       - name: Install dependencies
-        run: npm install @hiveio/dhive
-      - name: Run script
+        run: npm ci
+      - name: Test posting checks
+        run: npm test
+      - name: Publish Hive post
         env:
           HIVE_POSTING_KEY: ${{ secrets.HIVE_POSTING_KEY }}
           HIVE_USER: ${{ secrets.HIVE_USER }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          # "true" only when the manual run checks dry_run. Scheduled runs are "false".
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
         run: node post_to_hive.js
