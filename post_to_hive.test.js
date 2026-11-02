@@ -325,7 +325,7 @@ test('dry run does everything except broadcast', async () => {
   assert.equal(broadcasts, 0);
   assert.equal(result.dryRun, true);
   assert.equal(result.author, 'alice');
-  assert.match(result.permlink, /^crypto-capital-flow-/);
+  assert.match(result.permlink, /^ccf-/);
   const rendered = logs.join('\n');
   assert.match(rendered, /broadcast skipped/);
   assert.match(rendered, HANGUL);
@@ -531,8 +531,8 @@ test('realistic CoinGecko and CoinPaprika payloads use B/T units and unsigned do
   assert.match(geckoBody, /BTC dominance: 60\.11%/);
   assert.match(geckoBody, /ETH dominance: 10\.74%/);
   assert.doesNotMatch(geckoBody, /dominance: \+/);
-  assert.match(geckoBody, /Bitcoin: \$82,459 \/ 24h \+1\.25% \/ 7d -1\.49%/);
-  assert.match(geckoBody, /Ethereum: .+ \/ 24h -3\.50%/);
+  assert.match(geckoBody, /BTC \$82,459 \(24h \+1\.25%, 7d -1\.49%\)/);
+  assert.match(geckoBody, /ETH \$[\d,]+ \(24h -3\.50%/);
 
   const paprika = normalizeCoinPaprika([
     {

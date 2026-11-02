@@ -414,30 +414,27 @@ function buildInsight({ markets, global, source }) {
   const totalVolume = global.total_volume?.usd;
 
   const dominanceComment = btcDominance >= 55
-    ? 'BTC dominance가 높은 구간입니다. 시장은 아직 알트코인 확산보다 비트코인 중심의 방어적 자금 배분을 선호하는 모습입니다.'
-    : 'BTC dominance가 상대적으로 낮아지는 구간입니다. 위험 선호가 알트코인으로 확산되는지 확인할 필요가 있습니다.';
+    ? 'BTC 점유율이 높아 자금이 비트코인 중심으로 방어적입니다.'
+    : 'BTC 점유율이 낮아져 알트코인으로 위험 선호가 확산되는지 볼 구간입니다.';
 
   const btcFlow = btc?.price_change_percentage_24h >= 0
-    ? '비트코인이 24시간 기준 상승권에 있어 대형 자금의 위험자산 선호가 유지되는지 관찰할 만합니다.'
-    : '비트코인이 24시간 기준 약세라면, 거대 자본은 단기적으로 현금성 자산 또는 방어적 포지션을 선호할 수 있습니다.';
+    ? 'BTC 24h 상승: 위험자산 선호 유지 여부 관찰.'
+    : 'BTC 24h 약세: 단기 방어적 포지션 선호 가능.';
 
-  const moverLines = volatile.map((c, idx) => {
-    const direction = c.price_change_percentage_24h >= 0 ? '상승 모멘텀' : '하락 변동성';
-    const strategy = c.price_change_percentage_24h >= 0
-      ? '전고점 돌파 후 거래량이 유지될 때만 추격 관찰, 실패 시 빠른 손절 기준 필요'
-      : '급락 후 거래량 감소와 반등 캔들 확인 전까지 저점 예측 매수 금지';
-    return `### ${idx + 1}. ${c.name} (${String(c.symbol).toUpperCase()})\n- 현재가: ${usd(c.current_price)}\n- 24시간 변동률: ${pct(c.price_change_percentage_24h)}\n- 7일 변동률: ${pct(c.price_change_percentage_7d_in_currency)}\n- 거래대금: ${compactUsd(c.total_volume)}\n- 관찰 포인트: ${direction}. ${strategy}.`;
-  }).join('\n\n');
+  const moverLines = volatile.map((c) => {
+    const tip = c.price_change_percentage_24h >= 0 ? '거래량 유지 시에만 관찰' : '반등 확인 전 매수 금지';
+    return `- ${String(c.symbol).toUpperCase()} ${usd(c.current_price)} | 24h ${pct(c.price_change_percentage_24h)} | 7d ${pct(c.price_change_percentage_7d_in_currency)} | Vol ${compactUsd(c.total_volume)} — ${tip}`;
+  }).join('\n');
 
-  const title = `Crypto Capital Flow Brief: Bitcoin, Macro Liquidity and High-Volatility Coins (${date})`;
-  const body = `# ${title}\n\n## 1. 오늘의 시장 온도\n- 전체 가상화폐 시가총액: ${compactUsd(totalMarketCap)}\n- 전체 24시간 거래대금: ${compactUsd(totalVolume)}\n- BTC dominance: ${sharePct(btcDominance)}\n- ETH dominance: ${sharePct(ethDominance)}\n- Bitcoin: ${usd(btc?.current_price)} / 24h ${pct(btc?.price_change_percentage_24h)} / 7d ${pct(btc?.price_change_percentage_7d_in_currency)}\n- Ethereum: ${usd(eth?.current_price)} / 24h ${pct(eth?.price_change_percentage_24h)} / 7d ${pct(eth?.price_change_percentage_7d_in_currency)}\n\n## 2. 거대 자본과 세계경제 흐름 해석\n${dominanceComment}\n\n${btcFlow}\n\n최근 가상화폐 시장은 단순한 개인 투자 심리보다, 달러 유동성, ETF/기관성 수요, 금리 기대, 위험자산 선호 변화와 함께 움직이는 경향이 강합니다. 따라서 비트코인의 방향성과 BTC dominance는 거대 자본이 위험을 늘리는지, 아니면 알트코인보다 대형 자산에만 머무르는지 판단하는 핵심 신호로 볼 수 있습니다.\n\n## 3. 미친 변동률을 보이는 코인 2~3개 관찰 목록\n${moverLines}\n\n## 4. 트레이딩 제안이 아니라, 리스크 관리 중심의 관찰 시나리오\n- 레버리지는 피하고, 변동성 코인은 작은 비중으로만 접근합니다.\n- 24시간 변동률만 보고 진입하지 말고, 거래대금 유지 여부와 BTC 방향을 함께 확인합니다.\n- 급등 코인은 눌림 후 재돌파, 급락 코인은 거래량 둔화 후 반등 확인이 더 안전합니다.\n- 손절 기준을 먼저 정하지 못하면 진입하지 않는 것이 좋습니다.\n\n*이 글은 자동화된 시장 데이터 분석이며 투자 조언이 아닙니다. 모든 투자의 책임은 본인에게 있습니다.*\n\nData source: ${sourceLabel}. Published automatically to Hive blockchain.`;
+  const title = `Crypto Capital Flow Brief (${date})`;
+  const body = `## 시장 온도\n- 전체 가상화폐 시가총액: ${compactUsd(totalMarketCap)}\n- 전체 24시간 거래대금: ${compactUsd(totalVolume)}\n- BTC dominance: ${sharePct(btcDominance)}\n- ETH dominance: ${sharePct(ethDominance)}\n- BTC ${usd(btc?.current_price)} (24h ${pct(btc?.price_change_percentage_24h)}, 7d ${pct(btc?.price_change_percentage_7d_in_currency)})\n- ETH ${usd(eth?.current_price)} (24h ${pct(eth?.price_change_percentage_24h)}, 7d ${pct(eth?.price_change_percentage_7d_in_currency)})\n\n## 해석\n${dominanceComment} ${btcFlow}\n\n## 고변동 코인\n${moverLines}\n\n레버리지 회피, 소액·손절 기준 우선.\n\n*투자 조언 아님. Data: ${sourceLabel}.*`;
 
   return { title, body };
 }
 
 function buildComment(username, title, body) {
   const tags = ['crypto', 'bitcoin', 'trading', 'market', 'korea'];
-  const permlink = slug('crypto-capital-flow-' + new Date().toISOString().replace(/[:.]/g, '-'));
+  const permlink = slug('ccf-' + new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-'));
   return {
     parent_author: '',
     parent_permlink: tags[0],
@@ -447,11 +444,29 @@ function buildComment(username, title, body) {
     body,
     json_metadata: JSON.stringify({
       tags,
-      app: 'hive-auto-blog/1.0',
-      format: 'markdown',
-      description: 'Automated crypto market capital flow brief with high-volatility coin watchlist.'
+      app: 'hive-auto-blog/1.1'
     })
   };
+}
+
+const MIN_RC_PCT = 35;
+
+async function checkRc(client, username, log) {
+  if (typeof client.call !== 'function') return null;
+  try {
+    const res = await client.call('rc_api', 'find_rc_accounts', { accounts: [username] });
+    const a = res && res.rc_accounts && res.rc_accounts[0];
+    if (!a) return null;
+    const max = Number(a.max_rc);
+    const elapsed = Math.floor(Date.now() / 1000) - Number(a.rc_manabar.last_update_time);
+    const cur = Math.min(max, Number(a.rc_manabar.current_mana) + (max * elapsed) / 432000);
+    const pct = max > 0 ? (cur / max) * 100 : 0;
+    log('Current RC: ' + pct.toFixed(1) + '%');
+    return { pct };
+  } catch (err) {
+    log('RC check failed, continuing: ' + (err && err.message));
+    return null;
+  }
 }
 
 async function run(options = {}) {
@@ -501,6 +516,13 @@ async function run(options = {}) {
     log('URL: https://hive.blog/@' + username + '/' + comment.permlink);
     log(body);
     return { dryRun: true, title, permlink: comment.permlink, author: username, source: data.source };
+  }
+
+  const rc = await checkRc(client, username, log);
+  if (rc && rc.pct < MIN_RC_PCT) {
+    log('Skipped: RC ' + rc.pct.toFixed(1) + '% < ' + MIN_RC_PCT + '%. Will retry next scheduled run.');
+    log('RC 부족(' + rc.pct.toFixed(1) + '%)으로 이번 발행을 건너뜁니다. 다음 예약 실행에서 다시 시도합니다.');
+    return { dryRun: false, skipped: true, title, permlink: comment.permlink, author: username, source: data.source };
   }
 
   log('Broadcasting Hive post:', title);
